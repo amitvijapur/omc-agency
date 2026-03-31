@@ -1,17 +1,17 @@
-# OMC Agency
+# Orchestrator
 
-> Generate ready-to-paste Claude Code prompts that combine [Oh My Claude Code](https://github.com/jasonm23/oh-my-claude-code) orchestration with [Agency](https://github.com/cline/agency) specialist agents.
+> Generate ready-to-paste Claude Code prompts with the right agent, orchestration pattern, and context wired up.
 
-Describe a task. Get a prompt you can paste straight into Claude Code — with the right agent selected, the right orchestration pattern chosen, and context/output paths wired up.
+Describe a task. Get a prompt you can paste straight into Claude Code — with the right specialist selected, the right execution pattern chosen, and context/output paths configured.
 
 ## What it does
 
-OMC Agency bridges two powerful Claude Code ecosystems:
+Orchestrator bridges multiple Claude Code ecosystems into a single prompt generator:
 
-- **Agency Agents** — 150+ specialist agents installed at `~/.claude/agents/` (Software Architect, Security Engineer, Finance Tracker, Growth Hacker, etc.)
+- **Agency Agents** — 150+ specialist agents at `~/.claude/agents/` (Software Architect, Security Engineer, Finance Tracker, Growth Hacker, etc.)
 - **OMC Patterns** — orchestration patterns that control *how* agents execute (planning loops, parallel runs, autonomous mode)
-
-Instead of manually figuring out which agent to use and how to structure your prompt, you describe what you want and OMC Agency generates the optimal prompt.
+- **ECC Patterns** — autonomous loop patterns, eval-driven development, and agentic engineering principles
+- **Evolving** — designed to absorb new workflow patterns as they emerge from the community
 
 ## Orchestration patterns
 
@@ -19,9 +19,12 @@ Instead of manually figuring out which agent to use and how to structure your pr
 |---------|--------|----------|
 | **ralplan** | `ralplan "task"` | Important work needing a plan → execute → verify loop |
 | **autopilot** | `autopilot: task` | Well-defined tasks you trust to run without checkpoints |
-| **team** | `/team N:executor "task"` | Parallel execution across multiple agents |
 | **ralph** | `ralph: task` | Must be bulletproof — won't stop until verified |
+| **team** | `/team N:executor "task"` | Parallel execution across multiple agents |
 | **deep-interview** | `/deep-interview` | Nail down requirements before building |
+| **scripted** | `claude --bare -p "task"` | CI/cron/headless automation |
+| **loop** | Continuous iteration | Long-running tasks with exit conditions |
+| **loop + ralph** | Loop with ralph per iteration | Long-running AND bulletproof per step |
 
 ## Quick examples
 
@@ -35,28 +38,38 @@ Save to 'docs/auth_architecture.md'"
 
 **Multi-agent parallel — landing page:**
 ```
-— Agent 1: Brand Guardian —
+— Run in parallel —
 Use the Brand Guardian agent. ralplan "Write landing page copy..."
-
-— Agent 2: SEO Specialist —
 Use the SEO Specialist agent. ralplan "Keyword research and on-page SEO..."
-
-— Agent 3: UI Designer —
 Use the UI Designer agent. ralplan "Design the landing page wireframe..."
+
+— Then reconcile —
+Use the Software Architect agent. autopilot: "Reconcile outputs into a unified spec..."
 ```
 
-**Quick task — autopilot:**
+**Eval-first — AI/ML task:**
 ```
-Use the Compliance Auditor agent. autopilot: Extract disclaimer texts
-from 'docs/compliance.md' and create a reference file.
-Save to 'docs/disclaimers.md'
+Use the AI Engineer agent. ralplan "Build the recommendation engine.
+Step 1: Define eval criteria (accuracy > 90%, latency < 200ms).
+Step 2: Baseline current performance.
+Step 3: Implement.
+Step 4: Re-evaluate, only ship if all criteria pass.
+Save eval results to 'evals/recommendation-eval.md'"
+```
+
+**Loop — iterative discovery:**
+```
+Use the AI Engineer agent. autopilot: Run a strategy discovery loop.
+Each iteration: generate one signal variant, backtest 90 days, score.
+Exit when: Sharpe > 1.5 and max drawdown < 8%.
+Log to 'research/loop-log.md'. Cap at 20 iterations.
 ```
 
 ## Agent selection guide
 
 | Domain | Agent(s) |
 |--------|----------|
-| Backend / API / architecture | Software Architect, Backend Architect |
+| Backend / API / architecture | Software Architect (design), Backend Architect (implementation) |
 | Database / schema | Database Optimiser |
 | Security / threat modelling | Security Engineer |
 | AI / ML pipeline | AI Engineer |
@@ -70,50 +83,33 @@ Save to 'docs/disclaimers.md'
 | Content / social / blog | Content Creator, Twitter Engager |
 | SEO | SEO Specialist |
 | Testing / QA | QA Engineer |
+| Browser / GUI | Browser Automator |
 
 ## Installation
 
 ### As a Claude Code skill
 
-Copy the `SKILL.md` file to your Claude Code skills directory:
-
 ```bash
-# Create the skill directory
-mkdir -p ~/.claude/skills/omc-agency
-
-# Copy the skill file
-cp SKILL.md ~/.claude/skills/omc-agency/SKILL.md
+mkdir -p ~/.claude/skills/orchestrator
+cp SKILL.md ~/.claude/skills/orchestrator/SKILL.md
 ```
 
 ### Prerequisites
 
-This skill works best with:
+Works best with:
 
-- [Oh My Claude Code](https://github.com/jasonm23/oh-my-claude-code) installed for orchestration patterns
-- [Agency](https://github.com/cline/agency) agents installed at `~/.claude/agents/`
+- [Oh My Claude Code](https://github.com/Yeachan-Heo/oh-my-claudecode) for orchestration patterns
+- [Agency Agents](https://github.com/msitarzewski/agency-agents) at `~/.claude/agents/`
 
-Without these, the generated prompts will still work as structured Claude Code prompts — you just won't get the orchestration loops or specialist personas.
+Without these, the generated prompts still work as structured Claude Code prompts — you just won't get the orchestration loops or specialist personas.
 
-## How it works
+## Sources
 
-1. You describe a task (in Claude.ai or Claude Code)
-2. The skill selects the right agent based on domain
-3. It picks the best orchestration pattern based on complexity
-4. It generates a copy-paste prompt with context paths and output destinations
-5. You paste it into Claude Code and the agent executes
+This skill synthesises patterns from:
 
-For multi-domain tasks, it generates parallel prompts with a reconciliation step.
-
-## Roadmap
-
-- [ ] Custom domain agents (financial research, deep research, etc.)
-- [ ] MCP integration patterns
-- [ ] Multi-agent workflow templates
-- [ ] Community-contributed agent configurations
-
-## Contributing
-
-Contributions welcome — especially new agent configurations and workflow templates. Open a PR or issue.
+- [Oh My Claude Code](https://github.com/Yeachan-Heo/oh-my-claudecode) — orchestration patterns (ralplan, ralph, autopilot, team)
+- [Agency Agents](https://github.com/msitarzewski/agency-agents) — 150+ specialist agent personas
+- [Everything Claude Code](https://github.com/affaan-m/everything-claude-code) — autonomous loops, eval-driven development, agentic engineering principles
 
 ## Licence
 
