@@ -1,0 +1,9 @@
+{
+  "name": "orchestrator",
+  "description": "Generate ready-to-paste Claude Code prompts with the right agent, orchestration pattern, and safety rails. 9 patterns, 15-domain agent selection, loop safety, swarm coordination, multi-model review, and sentinel quality gates.",
+  "version": "3.0.0",
+  "author": {
+    "name": "Amit Vijapur",
+    "url": "https://github.com/amitvijapur"
+  }
+}
