@@ -3,9 +3,9 @@ name: orchestrator
 description: Generate ready-to-paste Claude Code prompts that combine Oh My Claude Code (OMC) orchestration with Agency Agents expertise. Use this skill whenever the user wants to run a task in Claude Code, mentions an agent name, says "ralplan", "autopilot", "ralph", "team mode", asks for a prompt to paste into Claude Code, wants to kick off a build/design/analysis task, or says things like "run this in Claude Code", "which agent should I use", "give me the prompt", "set up the agents for X". Also triggers when the user references any specialist role (e.g. "backend architect", "security engineer", "growth hacker", "UX researcher") in the context of running a Claude Code task. If the user is planning work that would benefit from multi-agent orchestration, proactively suggest using this skill.
 ---
 
-# OMC + Agency Agents Prompt Generator
+# Orchestrator
 
-Generate ready-to-paste prompts combining **OMC orchestration** with **Agency Agents** (150+ specialists at `~/.claude/agents/`, list with `/agents`).
+Generate ready-to-paste Claude Code prompts with the right agent, orchestration pattern, and context wired up. Uses 150+ specialists at `~/.claude/agents/` (list with `/agents`).
 
 ---
 
@@ -21,6 +21,7 @@ Generate ready-to-paste prompts combining **OMC orchestration** with **Agency Ag
 | **scripted** | `claude --bare -p "task"` | CI/cron/headless. No hooks/LSP. Requires `ANTHROPIC_API_KEY`. |
 | **loop** | See Loop Patterns below | Long-running iterative tasks with exit conditions. |
 | **loop + ralph** | Loop with ralph per iteration | Long-running AND each iteration must be bulletproof. |
+| **sentinel** | Auditor agent after build | Quality gate — separate agent reviews output before shipping. |
 
 Combo syntax: `Use the [Agent Name] agent. [pattern] "task"`
 
@@ -41,7 +42,7 @@ Save to '[output path]/'"
 
 - **Single specialist + important work** → ralplan
 - **Quick well-defined task** → autopilot
-- **Must be perfect** → ralph
+- **Must be perfect** → ralph. For any long-running ralph/autopilot/ralplan, append `--channels` for remote approval
 - **Multiple specialists** → Separate prompts per agent, run in parallel sessions. **Always include a final reconciliation prompt** that reads all outputs and produces a unified deliverable. Use `/team` as an alternative for tighter coordination
 - **Requirements unclear** → `/deep-interview` first, then ralplan
 - **CI/cron** → `claude --bare -p "task"`
@@ -58,10 +59,26 @@ Save to '[output path]/'"
 - **Sonnet** (default): Features, bug fixes, tests, refactors
 - **Opus** (`--model opus`): Architecture, complex debugging, security reviews
 
-### 4. Long-running prompts
+**Skill extraction:** After tasks involving corrections or non-obvious workarounds, add "run `/learner` to extract reusable patterns" to the prompt.
 
-Append to any ralph/autopilot/ralplan prompt:
-> **Tip:** Run with `--channels` to approve permissions remotely from your phone.
+### 4. Inter-agent memory
+
+For multi-agent or multi-session tasks, use a shared state file so agents can build on each other's work:
+- Add to prompts: "Read `shared/agent-state.md` for prior agent findings. Append your findings under `## [Your Agent Name]` before exiting."
+- Each agent reads at start, writes at end. Namespace by agent name to avoid clobbering.
+
+### 5. Multi-model review
+
+For high-stakes outputs (architecture, security, financial), get external model perspectives:
+- Use `/ask codex "review [output]"` (correctness, edge cases) and `/ask gemini "review [output]"` (scale, performance) — or `/ccg` for full tri-model orchestration.
+- **Critical:** Claude independently evaluates each suggestion (AGREE/REJECT) before applying. Never auto-apply external model suggestions.
+
+### 6. Sentinel gate
+
+After a build completes, run a DIFFERENT agent as auditor before shipping:
+- Three levels: **warn** (log, continue), **review** (flag for human), **block** (reject, send back to builder)
+- Prompt pattern: "After the build, use the Security Engineer agent. autopilot: Review all changes for vulnerabilities, dead code, missing error handling. Block on critical issues, warn on medium. Save to `reviews/sentinel-audit.md`"
+- The sentinel must always be a different specialist than the builder to avoid same-model blind spots.
 
 ---
 
@@ -95,11 +112,19 @@ For autonomous extended tasks — monitoring, iterative discovery, migrations.
 
 | Pattern | Use When |
 |---------|----------|
-| **Sequential pipeline** | Chain `claude --bare -p` in a script. CI/cron. |
 | **Infinite agentic loop** | Outer prompt spawns sub-agents per iteration. Discovery, monitoring. |
 | **Continuous PR loop** | Each iteration = one PR, CI-gated. Refactors, migrations. |
 | **De-sloppify** | Cleanup add-on after any pattern. Dead imports, unused vars, naming. |
-| **loop + ralph** | Each iteration ralph-verified. Long-running + bulletproof. |
+
+### Loop safety
+
+Always include circuit breaker rules in loop prompts to prevent runaway execution:
+
+- **No progress** — halt if no git changes or new output for 3 consecutive iterations
+- **Repeated errors** — halt if the same error appears 3+ times in a row
+- **Output decline** — halt if output length drops >70% (agent is looping on nothing)
+- **Test saturation** — exit if 3 consecutive iterations only run tests with no code changes
+- **Completion signals** — exit when 2+ iterations report "done" or all checklist items are checked
 
 ### Loop prompt template
 
@@ -108,8 +133,24 @@ Use the [Agent] agent. autopilot: Run continuously until [exit condition].
 Each iteration: [cycle action].
 On failure: [retry/escalate/halt].
 Exit when: [verifiable condition].
+Safety: Halt if no progress for 3 iterations or same error repeats 3x.
 Log to '[path]/loop-log.md'. Cap at [N] iterations.
 ```
+
+---
+
+## Swarm Patterns
+
+For complex multi-agent coordination beyond simple parallel + reconcile.
+
+| Topology | Structure | Use When |
+|----------|-----------|----------|
+| **Hierarchical** | One coordinator agent delegates to specialist workers, synthesises results | Clear authority needed, strong task dependencies, complex projects |
+| **Mesh** | Peer-to-peer agents, no coordinator, share findings via shared file, pick up unclaimed work | Fault tolerance needed, collaborative exploration, no clear hierarchy |
+
+**Hierarchical:** `"Use the Software Architect agent as coordinator. Delegate sub-tasks to Backend Architect, Database Optimiser, and Security Engineer. Read each worker's output from shared/. Coordinator synthesises into final deliverable."`
+
+**Mesh:** Best with `/team` or parallel tmux sessions. For sequential fallback, agents run one after another, each reading `shared/notes.md` for prior findings and appending their own. Later agents can pick up work earlier agents flagged but didn't complete.
 
 ---
 
@@ -158,14 +199,6 @@ Step 4: Re-evaluate, only ship if all criteria pass.
 Save eval results to 'evals/recommendation-eval.md'"
 ```
 
-### Loop — iterative discovery
-```
-Use the AI Engineer agent. autopilot: Run a strategy discovery loop.
-Each iteration: generate one signal variant, backtest 90 days, score.
-Exit when: Sharpe > 1.5 and max drawdown < 8%.
-Log to 'research/loop-log.md'. Cap at 20 iterations.
-```
-
 ### Computer use (Browser Automator)
 ```
 Use the Browser Automator agent. ralplan "QA walkthrough of staging onboarding flow.
@@ -176,6 +209,22 @@ Step 3: Complete profile setup and screenshot the confirmation page.
 If you cannot interact with the browser directly, output step-by-step manual instructions with expected field values instead.
 Save screenshots to 'qa/onboarding-screenshots/'.
 Save summary to 'qa/onboarding-walkthrough.md'"
+```
+
+### Sentinel + multi-model review (high-stakes)
+```
+— Step 1: Build —
+Use the Backend Architect agent. ralplan "Implement the payment webhook handler.
+Read 'CLAUDE.md' and 'docs/stripe-integration.md'.
+Save to 'src/webhooks/stripe.ts'"
+
+— Step 2: Multi-model review —
+/ccg "Review src/webhooks/stripe.ts for correctness, security, and edge cases"
+
+— Step 3: Sentinel gate —
+Use the Security Engineer agent. autopilot: "Audit src/webhooks/stripe.ts.
+Check for: signature verification, idempotency, error leakage, missing event types.
+Block on critical issues, warn on medium. Save to 'reviews/stripe-audit.md'"
 ```
 
 ### Scripted pipeline (CI/cron)
