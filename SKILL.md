@@ -5,7 +5,7 @@ description: Generate ready-to-paste Claude Code prompts that combine Oh My Clau
 
 # Orchestrator
 
-Generate ready-to-paste Claude Code prompts with the right agent, orchestration pattern, and context wired up. Uses 150+ specialists at `~/.claude/agents/` (list with `/agents`).
+Workflow orchestration for Claude Code — selects the right agent, pattern, coordination topology, and safety rails for any task. Outputs ready-to-paste prompts. Uses 150+ specialists at `~/.claude/agents/` (list with `/agents`).
 
 ---
 

@@ -1,8 +1,8 @@
 # Orchestrator
 
-> The most comprehensive Claude Code prompt generation skill — synthesising orchestration patterns, agent coordination, quality gates, and safety mechanisms from across the open-source ecosystem into a single, efficient skill.
+> Workflow orchestration for Claude Code — the right agent, pattern, coordination topology, and safety rails for any task.
 
-Describe a task. Get a prompt you can paste straight into Claude Code — with the right specialist selected, the right execution pattern chosen, context paths wired up, and safety rails in place.
+Describe a task. Orchestrator selects the right specialist, picks the execution pattern, wires up context paths, adds safety rails, and outputs a ready-to-paste prompt.
 
 ---
 
