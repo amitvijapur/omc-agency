@@ -1,11 +1,13 @@
 ---
 name: orchestrator
-description: Generate ready-to-paste Claude Code prompts that combine Oh My Claude Code (OMC) orchestration with Agency Agents expertise. Use this skill whenever the user wants to run a task in Claude Code, mentions an agent name, says "ralplan", "autopilot", "ralph", "team mode", asks for a prompt to paste into Claude Code, wants to kick off a build/design/analysis task, or says things like "run this in Claude Code", "which agent should I use", "give me the prompt", "set up the agents for X". Also triggers when the user references any specialist role (e.g. "backend architect", "security engineer", "growth hacker", "UX researcher") in the context of running a Claude Code task. If the user is planning work that would benefit from multi-agent orchestration, proactively suggest using this skill.
+description: Generate ready-to-paste Claude Code prompts that combine Oh My Claude Code (OMC) orchestration with Agency Agents expertise. Use this skill whenever the user wants to run a task in Claude Code, mentions an agent name, says "ralplan", "autopilot", "ralph", "team mode", "self-improve", asks for a prompt to paste into Claude Code, wants to kick off a build/design/analysis task, or says things like "run this in Claude Code", "which agent should I use", "give me the prompt", "set up the agents for X". Also triggers when the user references any specialist role (e.g. "backend architect", "security engineer", "growth hacker", "UX researcher") in the context of running a Claude Code task. If the user is planning work that would benefit from multi-agent orchestration, proactively suggest using this skill.
 ---
 
 # Orchestrator
 
 Workflow orchestration for Claude Code — selects the right agent, pattern, coordination topology, and safety rails for any task. Outputs ready-to-paste prompts. Uses 150+ specialists at `~/.claude/agents/` (list with `/agents`).
+
+**OMC Version:** 4.10.1 | **OMC Agents:** 19 built-in (explore, analyst, planner, architect, debugger, executor, verifier, tracer, security-reviewer, code-reviewer, test-engineer, designer, writer, qa-tester, scientist, document-specialist, git-master, code-simplifier, critic)
 
 ---
 
@@ -14,14 +16,24 @@ Workflow orchestration for Claude Code — selects the right agent, pattern, coo
 | Pattern | Syntax | Use When |
 |---------|--------|----------|
 | **ralplan** | `ralplan "task"` | Important work needing planning + verify/fix loops. **Default choice.** |
-| **autopilot** | `autopilot: task` | Well-defined, lower-risk tasks. One-shot autonomous. |
-| **ralph** | `ralph: task` | Must be bulletproof. Won't stop until verified complete. |
-| **team** | `/team N:executor "task"` | Parallel execution, multiple perspectives. |
-| **deep-interview** | `/deep-interview` | Requirements unclear. Run before building. |
+| **autopilot** | `autopilot: task` | Well-defined, lower-risk tasks. Full lifecycle: spec → plan → execute → QA → validate. |
+| **ralph** | `ralph: task` | Must be bulletproof. PRD-driven, story-by-story, deslop pass, won't stop until verified. |
+| **team** | `/team N:executor "task"` | Parallel execution, multiple perspectives. Uses team pipeline: plan → prd → exec → verify → fix. |
+| **ultrawork** | `ulw: task` | Parallel burst execution. Model-tiered agents (haiku/sonnet/opus). No persistence — use ralph for that. |
+| **ultraqa** | `/ultraqa` | QA cycling — test, verify, fix, repeat until goal met. |
+| **self-improve** | `/self-improve` | Autonomous evolutionary code improvement with tournament selection and benchmarks. |
+| **deep-interview** | `/deep-interview` | Requirements unclear. Socratic clarification with ambiguity gating. Run before building. |
+| **sciomc** | `/sciomc` | Parallel scientist agents for comprehensive data analysis. |
+| **ccg** | `/ccg` | Tri-model orchestration: Claude + Codex + Gemini synthesis. |
 | **scripted** | `claude --bare -p "task"` | CI/cron/headless. No hooks/LSP. Requires `ANTHROPIC_API_KEY`. |
 | **loop** | See Loop Patterns below | Long-running iterative tasks with exit conditions. |
 | **loop + ralph** | Loop with ralph per iteration | Long-running AND each iteration must be bulletproof. |
 | **sentinel** | Auditor agent after build | Quality gate — separate agent reviews output before shipping. |
+
+**Pipeline chains** (most thorough → least):
+- `deep-interview → ralplan → autopilot` — Socratic spec → consensus plan → autonomous execution (skips Phase 0+1)
+- `ralplan → ralph` — consensus plan → bulletproof implementation
+- `autopilot` — standalone full lifecycle
 
 Combo syntax: `Use the [Agent Name] agent. [pattern] "task"`
 
@@ -54,16 +66,36 @@ Save to '[output path]/'"
 
 **15-minute rule:** If a task exceeds ~15 min of focused agent work, decompose into sub-task prompts.
 
-**Model routing:**
-- **Haiku** (`--model haiku`): Boilerplate, formatting, simple transforms
-- **Sonnet** (default): Features, bug fixes, tests, refactors
-- **Opus** (`--model opus`): Architecture, complex debugging, security reviews
+**Model routing (OMC agent catalog tiers):**
+- **Haiku**: Boilerplate, formatting, simple transforms, quick lookups. OMC agents: explore, writer
+- **Sonnet** (default): Features, bug fixes, tests, refactors. OMC agents: debugger, executor, verifier, tracer, security-reviewer, test-engineer, designer, qa-tester, scientist, document-specialist, git-master
+- **Opus**: Architecture, complex debugging, security reviews, deep analysis. OMC agents: analyst, planner, architect, code-reviewer, code-simplifier, critic
 
 **Skill extraction:** After tasks involving corrections or non-obvious workarounds, add "run `/learner` to extract reusable patterns" to the prompt.
 
-### 4. Inter-agent memory
+**Commit protocol (OMC v4.10.1):** For non-trivial commits, use git trailers to preserve decision context:
+- `Constraint:` active constraint that shaped this decision
+- `Rejected:` alternative considered | reason for rejection
+- `Directive:` warning or instruction for future modifiers
+- `Confidence:` high | medium | low
+- `Scope-risk:` narrow | moderate | broad
+- `Not-tested:` edge case or scenario not covered by tests
 
-For multi-agent or multi-session tasks, use a shared state file so agents can build on each other's work:
+**Deslop pass:** Ralph now includes a mandatory `ai-slop-cleaner` pass after reviewer approval. Cleans AI-generated patterns (dead imports, unused vars, generic naming). Opt out with `--no-deslop`.
+
+### 4. Inter-agent memory (OMC state tools)
+
+OMC provides built-in persistence tools — prefer these over manual shared files:
+
+**State management:** `state_read`, `state_write`, `state_clear`, `state_list_active`, `state_get_status` — session-scoped mode tracking (autopilot, ralph, ultrawork, self-improve). Only one mode active at a time.
+
+**Notepad:** `notepad_write_priority` (critical findings), `notepad_write_working` (in-progress notes), `notepad_write_manual` (manual entries), `notepad_read` — cross-agent knowledge sharing within a session.
+
+**Project Memory:** `project_memory_read`, `project_memory_write`, `project_memory_add_note`, `project_memory_add_directive` — persistent project context that survives across sessions. Use for architectural decisions, patterns discovered, known issues.
+
+**Code Intelligence:** `lsp_diagnostics` (check for errors), `lsp_goto_definition`, `lsp_find_references`, `ast_grep_search/replace` (structural code search), `python_repl` (quick prototyping/validation).
+
+For multi-agent or multi-session tasks without OMC state tools, fall back to shared files:
 - Add to prompts: "Read `shared/agent-state.md` for prior agent findings. Append your findings under `## [Your Agent Name]` before exiting."
 - Each agent reads at start, writes at end. Namespace by agent name to avoid clobbering.
 
@@ -79,6 +111,8 @@ After a build completes, run a DIFFERENT agent as auditor before shipping:
 - Three levels: **warn** (log, continue), **review** (flag for human), **block** (reject, send back to builder)
 - Prompt pattern: "After the build, use the Security Engineer agent. autopilot: Review all changes for vulnerabilities, dead code, missing error handling. Block on critical issues, warn on medium. Save to `reviews/sentinel-audit.md`"
 - The sentinel must always be a different specialist than the builder to avoid same-model blind spots.
+- **OMC built-in sentinels:** `oh-my-claudecode:security-reviewer` (vuln check), `oh-my-claudecode:code-reviewer` (quality, Opus), `oh-my-claudecode:verifier` (evidence-based completion check). Autopilot Phase 4 runs all three in parallel automatically.
+- **Post-sentinel cleanup:** Run `oh-my-claudecode:ai-slop-cleaner` (or `deslop`/`anti-slop`) to remove AI-generated patterns. Ralph does this automatically unless `--no-deslop`.
 
 ---
 
@@ -114,7 +148,7 @@ For autonomous extended tasks — monitoring, iterative discovery, migrations.
 |---------|----------|
 | **Infinite agentic loop** | Outer prompt spawns sub-agents per iteration. Discovery, monitoring. |
 | **Continuous PR loop** | Each iteration = one PR, CI-gated. Refactors, migrations. |
-| **De-sloppify** | Cleanup add-on after any pattern. Dead imports, unused vars, naming. |
+| **De-sloppify** | Cleanup add-on after any pattern. Use `/deslop` or `anti-slop`. Built into ralph automatically. |
 
 ### Loop safety
 
@@ -225,6 +259,32 @@ Save to 'src/webhooks/stripe.ts'"
 Use the Security Engineer agent. autopilot: "Audit src/webhooks/stripe.ts.
 Check for: signature verification, idempotency, error leakage, missing event types.
 Block on critical issues, warn on medium. Save to 'reviews/stripe-audit.md'"
+```
+
+### Self-improve (autonomous optimisation)
+```
+/self-improve
+# Interactive setup: point at target repo, define goal (e.g. "reduce backtest latency"),
+# confirm benchmark command (e.g. "python benchmarks/backtester_benchmark.py").
+# Runs autonomously: research → plan → execute → tournament selection → merge winners.
+# Stops on: target reached, plateau, max iterations, or circuit breaker.
+```
+
+### Team pipeline (coordinated multi-agent)
+```
+/team 3:executor "Implement the OHLCV ingestion pipeline.
+Read 'CLAUDE.md' for project context and '15 - Tech & Security/architecture/Tech_Stack_Deep_Dive.md' for architecture.
+Agent 1: Celery task for CCXT → TimescaleDB ingestion.
+Agent 2: FastAPI endpoint for triggering manual ingestion.
+Agent 3: Unit tests for both.
+Save to 'src/ingestion/'"
+```
+
+### UltraQA (test-fix cycling)
+```
+/ultraqa "Run full test suite, fix all failures, repeat until green.
+Focus on src/backtester/ and src/discovery/.
+Cap at 5 cycles. Report any fundamental blockers."
 ```
 
 ### Scripted pipeline (CI/cron)
