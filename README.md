@@ -1,20 +1,125 @@
 # Orchestrator
 
-> Workflow orchestration for Claude Code — the right agent, pattern, coordination topology, and safety rails for any task.
+> Meta-router + prompt generator for Claude Code — the right workflow system, tier, agent, and pattern for any task.
 
-Describe a task. Orchestrator selects the right specialist, picks the execution pattern, wires up context paths, adds safety rails, and outputs a ready-to-paste prompt.
+Describe a task. Orchestrator classifies it, calibrates effort (L1–L4), picks the workflow system (OMC, GSD, ECC, Adversarial Spec, Graphify, MCPs, or direct execution), selects the specialist, wires up context paths, adds safety rails, and outputs a ready-to-paste prompt.
+
+**v4.0** adds Cortex — an always-on meta-router that sits above every workflow system and logs routing decisions for self-learning.
 
 ---
 
 ## Why this exists
 
-Claude Code has 150+ specialist agents, multiple orchestration frameworks (OMC, ECC), and dozens of workflow patterns scattered across different repos. Using them effectively means knowing which agent to pick, which pattern to use, how to coordinate multi-agent runs, when to add safety rails, and how to structure the prompt so the agent actually delivers.
+Claude Code has 180+ specialist agents, multiple orchestration frameworks (OMC, GSD, ECC, Adversarial Spec), a graph knowledge layer (Graphify), domain-specific ML models, MCPs (Context7, Exa, Firecrawl, Morph, Figma, Notion, Slack…), design system libraries, and dozens of workflow patterns scattered across repos.
 
-Orchestrator knows all of this so you don't have to. You describe what you want, it generates the optimal prompt.
+Using them effectively means knowing which *system* to use, which *tier* of effort to apply, which *agent* to pick, which *pattern* to use, how to *coordinate* multi-agent runs, when to add safety rails, and how to *structure* the prompt so the agent actually delivers.
+
+Orchestrator v4.0 knows all of this so you don't have to. It routes the task, picks the tier, and writes the prompt.
+
+---
+
+## What's new in v4.0 — Cortex
+
+Prior versions (v1–v3) were a single-purpose skill for prompt generation: invoke it on demand, get a prompt back.
+
+v4.0 introduces **Cortex**, a meta-router that sits *above* every workflow system and runs *before* every non-trivial task. It's shipped as an always-on include (`cortex.md`) alongside the on-demand skill (`SKILL.md`). Use both, or either one.
+
+### Six-step routing protocol
+
+Before starting any non-trivial task, Cortex runs:
+
+1. **Classify** — build / review / plan / research / debug / design / quick fix
+2. **Calibrate** — pick effort tier (L1–L4) using heuristics
+3. **Route** — pick the workflow system from the registry
+4. **Specialise** — pick the pattern + agent(s); fan out to parallel specialists if the task spans ≥2 independent disciplines
+5. **State + Log** — declare the routing line (`OMC > ralplan > Backend Architect @ L3`) and append to the self-learning log
+6. **Skip** — for trivial lookups, no calibration, no state line, no log
+
+### Four effort tiers
+
+| Tier | Name | Model | Thinking | Pattern | Verify |
+|------|------|-------|----------|---------|--------|
+| **L1** | Reflex | haiku / sonnet | none | direct | trust |
+| **L2** | Standard | sonnet | think | autopilot | spot-check |
+| **L3** | Deep | opus | think hard | ralplan | verifier pass |
+| **L4** | Max | opus | ultrathink | ralph / team | full verify loop |
+
+Tiers are declared out loud before execution so you can course-correct. Override with `"go light"`, `"be thorough"`, `"must be perfect"`, `"bump it"`, or `"drop it"`.
+
+### Self-learning loop
+
+Every route logs to `~/.claude/cortex-log.jsonl` via the shipped `bin/cortex` CLI:
+
+- `/cortex-log` — show last 20 routes with full reasoning trail
+- `/cortex-learn` — detect repeating `(class, system, pattern)` tuples and propose them as Decision Shortcuts (activates at ~20 routes)
+- `/cortex-reroute "new route"` — mark the last route as corrected when you disagree with the choice
+
+No retros, no ceremony. Data-triggered phases fire automatically as the log grows.
+
+### Workflow registry
+
+The shipped `cortex.md` includes routing tables for:
+
+- **OMC** (ralplan, autopilot, ralph, team, ccg, deep-interview, external-context, self-improve, verify, deep-dive)
+- **GSD** (phase-based project management, context rot prevention, autonomous execution)
+- **Adversarial Spec** (multi-model debate for spec hardening)
+- **ECC** (code review, PR workflows, ralph-loop)
+- **Agency Agents** (180+ specialists across 25+ domains)
+- **Tessl Skills** (framework-specific — React, Next.js, Stripe, Three.js, Python)
+- **Native Claude Code Surface** (channels, teleport, remote control, cloud/desktop schedule, Agent SDK)
+- **Graphify** (knowledge graph layer for cross-content reasoning)
+- **MCP Capabilities** (Context7, Exa, Firecrawl, Morph, Supabase, Slack)
+- **Cloud MCPs** (Figma, Notion, Gmail, Calendar, Canva, Granola, Scholar Gateway, Telegram, GitHub)
+- **Design Systems Library** (58+ real-world DESIGN.md specs)
+- **Chrome DevTools MCP** (visual QA, Lighthouse, a11y)
+- **Domain Models** (optional — pre-trained foundation models for specialised domains)
+
+### 80+ Decision Shortcuts
+
+A single lookup table maps task types to default routes with tier. Examples:
+
+| Task Type | Default Route | Tier |
+|---|---|---|
+| Build feature (backend) | OMC > ralplan > Backend Architect | L3 |
+| Multi-phase project | GSD > `/gsd-new-project` → `/gsd-autonomous` | L3 |
+| Security audit | OMC > ralplan > Security Engineer | L4 |
+| Must be perfect | OMC > ralph | L4 |
+| Multi-domain build (≥2 disciplines) | OMC > /team > parallel specialists → reconciler | L3 |
+| Small surgical fix | OMC > autopilot > Minimal Change Engineer | L1 |
+| Quick bug fix | Direct execution | L1 |
+
+Full table (80+ rows) in `cortex.md`.
+
+### Visual reference
+
+Open `assets/cortex-flowchart.html` in a browser for a rendered view of the full workflow registry and decision shortcuts.
 
 ---
 
 ## How it works
+
+### Mode 1 — Meta-router (always-on, via `cortex.md` include)
+
+```
+You: "refactor the auth middleware to use the new session store"
+
+Cortex declares:
+  OMC > ralplan > Backend Architect @ L3
+
+Then executes.
+```
+
+```
+You: "build a checkout page with Stripe, tracking, and a11y polish"
+
+Cortex declares:
+  OMC > /team > [Frontend Developer ∥ Stripe skill ∥ Accessibility Auditor]
+    → Software Architect reconciler @ L3  [breadth=frontend+payments+a11y]
+
+Then generates parallel prompts + reconciliation step.
+```
+
+### Mode 2 — Prompt generator (on-demand, via skill)
 
 ```
 You: "I need to build a payment webhook handler — it has to be secure"
@@ -35,15 +140,26 @@ Orchestrator generates:
   Block on critical issues, warn on medium. Save to 'reviews/sentinel-audit.md'"
 ```
 
-Three agents, three steps, zero ambiguity. Copy, paste, execute.
-
 ---
 
 ## What's inside
 
+```
+orchestrator/
+├── SKILL.md              # on-demand skill (prompt generator)
+├── cortex.md             # always-on meta-router (CLAUDE.md include)
+├── bin/
+│   └── cortex            # Python CLI for self-learning log
+├── assets/
+│   └── cortex-flowchart.html   # visual reference
+├── README.md             # this file
+├── LICENSE               # MIT
+└── skills/               # legacy layout (unchanged from v3)
+```
+
 ### 9 Orchestration Patterns
 
-Every way you can run agents in Claude Code, with clear guidance on when to use each:
+Every way you can run agents in Claude Code:
 
 | Pattern | What it does | When to use it |
 |---------|-------------|----------------|
@@ -57,142 +173,97 @@ Every way you can run agents in Claude Code, with clear guidance on when to use 
 | **loop + ralph** | Loop where each iteration is ralph-verified | Long-running AND must be bulletproof per step. |
 | **sentinel** | Separate auditor agent reviews output | Quality gate before shipping. Different agent than the builder. |
 
-**Why this matters:** Without a decision framework, you default to autopilot for everything or waste time figuring out which pattern fits. The skill's pattern selection logic (Rule 2) maps task characteristics directly to the right pattern — no thinking required.
-
----
-
 ### 6 Prompt Generation Rules
 
-These rules shape every prompt the skill generates. Each one prevents a specific class of failure:
+1. **Context pointers + output destinations** — every prompt includes `Read '[file]'` and `Save to '[path]'`.
+2. **Pattern selection** — a flat decision map: task type → pattern.
+3. **Agentic engineering principles** — eval-first, 15-minute rule, model routing (haiku/sonnet/opus), skill extraction after corrections.
+4. **Inter-agent memory** — shared state file (`shared/agent-state.md`) namespaced by agent.
+5. **Multi-model review** — `/ask codex` + `/ask gemini` with AGREE/REJECT verification, or `/ccg` for full tri-model.
+6. **Sentinel gate** — different agent audits the build; warn / review / block.
 
-#### Rule 1: Context pointers + output destinations
-Every prompt includes `Read '[file]'` and `Save to '[path]'`. Without these, agents hallucinate project context and dump output to random locations.
+### Loop safety (circuit breakers)
 
-#### Rule 2: Pattern selection
-A flat decision map: task type → pattern. No branching logic, no ambiguity. Includes `--channels` for remote approval on long-running tasks, and explicit computer use scoping (target URL, fallback, single-app rule).
-
-#### Rule 3: Agentic engineering principles
-Four sub-principles that prevent waste:
-
-- **Eval-first:** For AI/ML tasks, define success criteria before building. Prevents "built the wrong thing" loops.
-- **15-minute rule:** Decompose tasks that exceed ~15 min of focused agent work. Prevents mega-prompts that agents choke on.
-- **Model routing:** Haiku for boilerplate, Sonnet for features, Opus for architecture. Prevents overspending on simple tasks.
-- **Skill extraction:** After corrections, prompt the agent to run `/learner` and capture the pattern. Prevents repeating the same mistake.
-
-#### Rule 4: Inter-agent memory
-For multi-agent or multi-session tasks, agents share state via a namespaced file (`shared/agent-state.md`). Each agent reads prior findings at start, appends their own at end. Without this, parallel agents duplicate work or contradict each other.
-
-#### Rule 5: Multi-model review
-For high-stakes outputs, get external perspectives via `/ask codex` (correctness) and `/ask gemini` (scale/performance), or `/ccg` for full tri-model orchestration. **Critical safety mechanism:** Claude independently evaluates each external suggestion (AGREE/REJECT) before applying — never auto-applies. Prevents blindly accepting bad advice from a different model.
-
-#### Rule 6: Sentinel gate
-After a build completes, a DIFFERENT specialist agent audits the output before shipping. Three gate levels:
-- **warn** — log the concern, continue
-- **review** — flag for human decision
-- **block** — reject and send back to the builder
-
-The sentinel must always be a different agent than the builder to avoid same-model blind spots (the same model that wrote the bug won't catch it in review).
-
----
-
-### 15-Domain Agent Selection
-
-The skill maps 15 domains to the right specialist agent(s), so you don't need to know which of the 150+ agents to use:
-
-| Domain | Agent(s) |
-|--------|----------|
-| Backend / API / architecture | Software Architect (design), Backend Architect (implementation) |
-| Database / schema | Database Optimiser |
-| Security / threats | Security Engineer |
-| AI / ML pipeline | AI Engineer |
-| DevOps / infra | DevOps Automator |
-| Compliance / legal | Compliance Auditor |
-| Frontend / UI | UI Designer |
-| UX research | UX Researcher |
-| Brand / copy | Brand Guardian |
-| Growth / marketing | Growth Hacker |
-| Finance / pricing | Finance Tracker |
-| Content / social | Content Creator, Twitter Engager |
-| SEO | SEO Specialist |
-| Testing / QA | QA Engineer |
-| Browser / GUI | Browser Automator |
-
-For multi-domain tasks, the skill generates parallel prompts with a reconciliation step — one agent synthesises all outputs into a unified deliverable.
-
----
-
-### Loop Patterns + Safety
-
-Three loop-specific patterns for autonomous extended tasks:
-
-| Pattern | Use case |
-|---------|----------|
-| **Infinite agentic loop** | Outer prompt spawns sub-agents per iteration. Strategy discovery, monitoring. |
-| **Continuous PR loop** | Each iteration = one PR, CI-gated. Large refactors, migrations. |
-| **De-sloppify** | Cleanup add-on after any pattern. Catches dead imports, unused vars, inconsistent naming. |
-
-#### Circuit breaker safety (from [ralph-claude-code](https://github.com/frankbria/ralph-claude-code))
-
-Every loop prompt includes safety rails to prevent runaway execution and token waste:
+Every loop prompt includes five exit conditions:
 
 | Trigger | What happens |
 |---------|-------------|
-| **No progress** | Halt if no git changes or new output for 3 consecutive iterations |
-| **Repeated errors** | Halt if the same error appears 3+ times in a row |
-| **Output decline** | Halt if output length drops >70% (agent looping on nothing) |
-| **Test saturation** | Exit if 3 consecutive iterations only run tests with no code changes |
-| **Completion signals** | Exit when 2+ iterations report "done" or all checklist items checked |
+| **No progress** | Halt after 3 iterations with no git changes or new output |
+| **Repeated errors** | Halt if the same error appears 3+ times |
+| **Output decline** | Halt if output length drops >70% |
+| **Test saturation** | Exit if 3 iterations only run tests, no code changes |
+| **Completion signals** | Exit when 2+ iterations report "done" |
 
-**Why this matters:** Without circuit breakers, a loop that gets stuck burns tokens indefinitely. The original ECC loop patterns had iteration caps but no stuck-loop detection. These five triggers catch the failure modes that iteration caps miss.
+### Swarm coordination
 
----
+Two multi-agent topologies beyond parallel + reconcile:
 
-### Swarm Coordination (from [Claude Flow](https://github.com/ruvnet/claude-flow))
-
-Two multi-agent topologies beyond simple parallel + reconcile:
-
-| Topology | How it works | When to use |
-|----------|-------------|-------------|
-| **Hierarchical** | One coordinator agent delegates to specialist workers, synthesises results | Clear authority needed, strong task dependencies, complex projects |
-| **Mesh** | Peer-to-peer agents share findings via shared file, pick up unclaimed work | Fault tolerance, collaborative exploration, no clear hierarchy |
-
-Hierarchical works in any Claude Code setup. Mesh works best with `/team` or parallel tmux sessions; for sequential runs, later agents pick up work earlier agents flagged but didn't complete.
-
----
-
-### 6 Examples
-
-Each example demonstrates a different capability and serves as a template the model copies:
-
-1. **Single agent + ralplan** — Rich, detailed prompt with numbered requirements, specific deliverables, and data flow diagram request. Teaches the model what a high-quality prompt looks like.
-
-2. **Multi-agent parallel** — Three specialists (Brand Guardian, SEO, UI Designer) running in parallel with an explicit reconciliation step. Shows the coordination pattern.
-
-3. **Eval-first (AI/ML)** — Four-step eval workflow: define criteria → baseline → implement → re-evaluate. Shows how to prevent "built the wrong thing."
-
-4. **Computer use (Browser Automator)** — Step-by-step QA walkthrough with screenshots, test data, and a fallback clause. Shows computer use scoping.
-
-5. **Sentinel + multi-model review** — Three-step build → cross-model review → security audit. The most advanced example, combining three new patterns in one flow.
-
-6. **Scripted pipeline (CI/cron)** — Three chained `claude --bare` commands with step dependencies. Shows headless automation.
+| Topology | Structure | Use when |
+|---|---|---|
+| **Hierarchical** | Coordinator delegates to workers | Clear authority, strong dependencies |
+| **Mesh** | Peer-to-peer via shared file | Fault tolerance, collaborative exploration |
 
 ---
 
 ## Installation
+
+### Recommended (hybrid)
+
+```bash
+# 1. Install as skill
+mkdir -p ~/.claude/skills/orchestrator
+cp SKILL.md ~/.claude/skills/orchestrator/SKILL.md
+
+# 2. Install cortex.md as global include
+cp cortex.md ~/.claude/cortex.md
+
+# 3. Install CLI for self-learning log
+mkdir -p ~/.claude/bin
+cp bin/cortex ~/.claude/bin/cortex
+chmod +x ~/.claude/bin/cortex
+
+# 4. Add the include to your global CLAUDE.md
+#    Append this line to ~/.claude/CLAUDE.md:
+#    @cortex.md
+
+# 5. (Optional) Keep the flowchart handy
+cp assets/cortex-flowchart.html ~/.claude/cortex-flowchart.html
+open ~/.claude/cortex-flowchart.html
+```
+
+After this, Cortex runs on every non-trivial task and the orchestrator skill is available for on-demand prompt generation.
+
+### Skill-only (no meta-router)
+
+If you want v3-style prompt generation without the always-on router:
 
 ```bash
 mkdir -p ~/.claude/skills/orchestrator
 cp SKILL.md ~/.claude/skills/orchestrator/SKILL.md
 ```
 
+Skip `cortex.md` entirely.
+
 ### Prerequisites
 
 Works best with:
 
-- [Oh My Claude Code](https://github.com/Yeachan-Heo/oh-my-claudecode) — orchestration patterns (ralplan, ralph, autopilot, team, `/learner`, `/ccg`)
-- [Agency Agents](https://github.com/msitarzewski/agency-agents) — 150+ specialist agents at `~/.claude/agents/`
+- [Oh My Claude Code (OMC)](https://github.com/Yeachan-Heo/oh-my-claudecode) — orchestration patterns (ralplan, ralph, autopilot, team, `/learner`, `/ccg`)
+- [Agency Agents](https://github.com/msitarzewski/agency-agents) — 180+ specialist agents at `~/.claude/agents/`
+- [GSD (Get Shit Done)](https://github.com/omniharmonic/gsd) — spec-driven multi-phase development (optional but referenced throughout cortex.md)
 
-Without these, the generated prompts still work as structured Claude Code prompts — you just won't get the orchestration loops or specialist personas.
+Without these, generated prompts still work as structured Claude Code prompts — you just won't get the orchestration loops or specialist personas.
+
+---
+
+## Personalising `cortex.md`
+
+The shipped `cortex.md` is generic. Two sections are marked **optional — personal setup** and can be removed or adapted:
+
+- **Obsidian surface** — symlinks to an Obsidian vault for browsing routes and proposals. Delete the section if you don't use Obsidian.
+- **Domain Models (Specialized)** — the example (Kronos — financial forecasting) is a template showing how to register a pre-trained domain model. Remove if not applicable, or replace with your own.
+
+Paths like `<tools-dir>/` and `<design-systems-dir>/` are placeholders — replace with your actual local paths before installing.
 
 ---
 
@@ -203,11 +274,14 @@ This skill synthesises patterns from:
 | Source | What it contributed |
 |--------|-------------------|
 | [Oh My Claude Code](https://github.com/Yeachan-Heo/oh-my-claudecode) | Orchestration patterns (ralplan, ralph, autopilot, team), `/learner`, `/ccg` |
-| [Agency Agents](https://github.com/msitarzewski/agency-agents) | 150+ specialist agent personas and domain routing |
+| [Agency Agents](https://github.com/msitarzewski/agency-agents) | 180+ specialist agent personas and domain routing |
+| [GSD (Get Shit Done)](https://github.com/omniharmonic/gsd) | Context rot prevention, spec-driven phases, autonomous execution |
 | [Everything Claude Code](https://github.com/affaan-m/everything-claude-code) | Autonomous loops, eval-driven development, agentic engineering, sentinel/auditor pattern |
 | [ralph-claude-code](https://github.com/frankbria/ralph-claude-code) | Circuit breaker safety (3-state model, exit detection, rate limiting) |
 | [Claude Flow](https://github.com/ruvnet/claude-flow) | Swarm coordination topologies (hierarchical, mesh), inter-agent memory patterns |
 | [levnikolaevich/claude-code-skills](https://github.com/levnikolaevich/claude-code-skills) | Multi-model review pipeline (parallel external agents, AGREE/REJECT verification) |
+| [Graphify](https://github.com/safishamsi/graphify) | Knowledge graph layer for cross-content reasoning |
+| [awesome-design-md](https://github.com/VoltAgent/awesome-design-md) | Design system reference library (58+ DESIGN.md specs) |
 
 Designed to keep evolving — new patterns get merged as they emerge from the community.
 
@@ -217,9 +291,26 @@ Designed to keep evolving — new patterns get merged as they emerge from the co
 
 | Version | Date | Changes |
 |---------|------|---------|
-| v3.0 | 2026-03-31 | +6 patterns (loop safety, swarm coordination, inter-agent memory, skill extraction, multi-model review, sentinel gate). Compacted to 253 lines with zero redundancy. |
+| **v4.0** | 2026-04-17 | **Cortex meta-router.** Always-on routing layer (`cortex.md`), 4-tier effort calibration (L1–L4), self-learning log (`bin/cortex`), visual flowchart (`assets/cortex-flowchart.html`), 80+ decision shortcuts, domain-breadth fan-out rule. Agent count refreshed to 180+. |
+| v3.0 | 2026-03-31 | +6 patterns (loop safety, swarm coordination, inter-agent memory, skill extraction, multi-model review, sentinel gate). Compacted to 253 lines. |
 | v2.0 | 2026-03-31 | Renamed to `orchestrator`. Merged ECC patterns (autonomous loops, agentic engineering). Compressed from 290 → 204 lines. |
 | v1.0 | 2026-03-26 | Initial release as `omc-agency`. 6 patterns, 5 examples, 205 lines. |
+
+---
+
+## Migrating from v3.0 → v4.0
+
+v3.0 users: your existing install keeps working. v4.0 is additive.
+
+**To adopt Cortex (recommended):**
+
+```bash
+cp cortex.md ~/.claude/cortex.md
+cp bin/cortex ~/.claude/bin/cortex && chmod +x ~/.claude/bin/cortex
+echo '@cortex.md' >> ~/.claude/CLAUDE.md
+```
+
+**To stay on v3-style prompt generation only:** skip the steps above. Your old `SKILL.md` behaviour is preserved in the new v4 `SKILL.md` as Mode 2.
 
 ---
 

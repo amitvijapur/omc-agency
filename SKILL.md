@@ -1,13 +1,45 @@
 ---
 name: orchestrator
-description: Generate ready-to-paste Claude Code prompts that combine Oh My Claude Code (OMC) orchestration with Agency Agents expertise. Use this skill whenever the user wants to run a task in Claude Code, mentions an agent name, says "ralplan", "autopilot", "ralph", "team mode", asks for a prompt to paste into Claude Code, wants to kick off a build/design/analysis task, or says things like "run this in Claude Code", "which agent should I use", "give me the prompt", "set up the agents for X". Also triggers when the user references any specialist role (e.g. "backend architect", "security engineer", "growth hacker", "UX researcher") in the context of running a Claude Code task. If the user is planning work that would benefit from multi-agent orchestration, proactively suggest using this skill.
+description: Meta-router + prompt generator for Claude Code — decides which workflow system (OMC, GSD, ECC, Adversarial Spec, Graphify, MCPs, direct), which tier (L1–L4), which agent, and which pattern to use for any task, and generates ready-to-paste prompts. Use this skill when the user asks "which agent should I use", "what's the right approach for X", "route this task", "give me the prompt", "set up the agents for X", mentions "ralplan", "autopilot", "ralph", "team mode", references any specialist role (backend architect, security engineer, growth hacker, UX researcher, etc.), or is planning work that would benefit from multi-agent orchestration. Also triggers on `/cortex-log`, `/cortex-learn`, `/cortex-reroute` for self-learning loop operations. For always-on routing behaviour, install the companion `cortex.md` include (see README).
 ---
 
 # Orchestrator
 
-Workflow orchestration for Claude Code — selects the right agent, pattern, coordination topology, and safety rails for any task. Outputs ready-to-paste prompts. Uses 150+ specialists at `~/.claude/agents/` (list with `/agents`).
+Meta-routing layer for Claude Code. Two modes:
+
+1. **Meta-router (always-on).** Install `cortex.md` as a CLAUDE.md include. Before every non-trivial task, Claude classifies → calibrates tier (L1–L4) → picks system → picks agent + pattern → logs the decision. See `cortex.md` for the full routing protocol.
+2. **Prompt generator (on-demand).** Invoke this skill to generate ready-to-paste prompts combining OMC orchestration with 180+ Agency Agents specialists at `~/.claude/agents/` (list with `/agents`).
+
+The meta-router decides *what* to run. The prompt generator writes *how* to run it. Use them together or independently.
 
 ---
+
+## Mode 1 — Meta-router (cortex.md)
+
+The companion `cortex.md` file (shipped in this repo) is the always-on routing layer. Install it once, add `@cortex.md` to your `~/.claude/CLAUDE.md`, and every non-trivial request will be classified, tier-calibrated, and routed before execution.
+
+### Tiers (L1–L4)
+
+| Tier | Name | Model | Thinking | Pattern | Verify |
+|------|------|-------|----------|---------|--------|
+| **L1** | Reflex | haiku / sonnet | none | direct | trust |
+| **L2** | Standard | sonnet | think | autopilot | spot-check |
+| **L3** | Deep | opus | think hard | ralplan | verifier pass |
+| **L4** | Max | opus | ultrathink | ralph / team | full verify loop |
+
+### Self-learning commands
+
+| Command | Purpose |
+|---------|---------|
+| `/cortex-log` | Show last 20 routes with full reasoning |
+| `/cortex-learn` | Detect repeating patterns, propose shortcuts |
+| `/cortex-reroute "new route"` | Mark last route as corrected |
+
+Routes are logged to `~/.claude/cortex-log.jsonl` via `bin/cortex` (shipped). Patterns surface automatically after ~20 logged routes.
+
+---
+
+## Mode 2 — Prompt Generator
 
 ## Orchestration Patterns
 
@@ -89,18 +121,25 @@ After a build completes, run a DIFFERENT agent as auditor before shipping:
 | Backend/API/architecture | Software Architect (design), Backend Architect (implementation) |
 | Database/schema | Database Optimiser |
 | Security/threats | Security Engineer |
-| AI/ML pipeline | AI Engineer |
+| AI/ML pipeline | AI Engineer, Voice AI Integration Engineer |
 | DevOps/infra | DevOps Automator |
-| Compliance/legal | Compliance Auditor |
-| Frontend/UI | UI Designer |
+| Compliance/legal | Compliance Auditor, Legal Client Intake, Legal Document Review, Legal Billing & Time Tracking |
+| Frontend/UI | UI Designer, Frontend Developer |
 | UX research | UX Researcher |
 | Brand/copy | Brand Guardian |
-| Growth/marketing | Growth Hacker |
-| Finance/pricing | Finance Tracker |
+| Growth/marketing | Growth Hacker, Agentic Search Optimizer (AEO/GEO) |
+| Finance/pricing | Finance Tracker, Investment Researcher, Tax Strategist, Bookkeeper/Controller, FP&A Analyst |
 | Content/social | Content Creator, Twitter Engager |
 | SEO | SEO Specialist |
 | Testing/QA | QA Engineer |
 | Browser/GUI | Browser Automator |
+| Onboarding / minimal change | Codebase Onboarding Engineer, Minimal Change Engineer |
+| Cross-functional ops | Chief of Staff |
+| HR / recruitment | HR Onboarding, Recruitment Specialist |
+| Real estate / lending | Real Estate Buyer & Seller, Loan Officer Assistant |
+| Customer service (verticalised) | Customer Service, Healthcare CS, Hospitality Guest Services, Retail Customer Returns |
+| Language / localisation | Language Translator |
+| Sales outreach | Sales Outreach, Outbound Strategist |
 
 Multi-domain tasks → parallel agents + reconciliation prompt.
 
@@ -251,3 +290,11 @@ Wire these in your CI config (GitHub Actions, GitLab CI) with step dependencies.
 4. Include reconciliation prompt if needed
 
 Keep explanations short. The prompts are the deliverable.
+
+---
+
+## See Also
+
+- **`cortex.md`** — Meta-router include. Install as `@cortex.md` in your `~/.claude/CLAUDE.md` for always-on routing.
+- **`assets/cortex-flowchart.html`** — Visual reference of all workflow systems and decision shortcuts. Open in a browser.
+- **`bin/cortex`** — Python CLI for the self-learning log (`/cortex-log`, `/cortex-learn`, `/cortex-reroute`).

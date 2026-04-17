@@ -1,7 +1,7 @@
 {
   "name": "orchestrator",
-  "description": "Workflow orchestration skill for Claude Code — selects agents, patterns, coordination topologies, and safety rails for any task. 9 patterns, 15-domain agent selection, loop safety, swarm coordination, multi-model review, and sentinel quality gates.",
-  "version": "3.0.0",
+  "description": "Meta-router + prompt generator for Claude Code. Always-on Cortex routing layer picks the workflow system (OMC, GSD, ECC, Adversarial Spec, Graphify, MCPs, direct), tier (L1-L4), agent, and pattern for any task. On-demand skill generates ready-to-paste prompts. Includes self-learning log, 80+ decision shortcuts, 9 orchestration patterns, 25+ agent domains, loop safety, swarm coordination, multi-model review, and sentinel quality gates.",
+  "version": "4.0.0",
   "author": {
     "name": "Amit Vijapur",
     "url": "https://github.com/amitvijapur"
