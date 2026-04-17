@@ -1,0 +1,229 @@
+#!/usr/bin/env python3
+"""cortex — routing decision log and self-learning loop for Cortex.
+
+Subcommands:
+  log      append a routing decision
+  show     display recent routes with reasoning
+  learn    detect patterns in the log, surface candidate shortcuts
+  reroute  mark the last entry as corrected
+"""
+import argparse
+import hashlib
+import json
+import os
+import sys
+from collections import Counter, defaultdict
+from datetime import datetime, timezone
+from pathlib import Path
+
+LOG_PATH = Path.home() / ".claude" / "cortex-log.jsonl"
+PATTERN_THRESHOLD = 3
+
+
+def now_iso():
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def session_id():
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H")
+
+
+def task_hash(task):
+    normalized = " ".join(task.lower().split())
+    return hashlib.sha256(normalized.encode()).hexdigest()[:12]
+
+
+def project_name():
+    try:
+        return Path(os.getcwd()).name
+    except Exception:
+        return "unknown"
+
+
+def read_log():
+    if not LOG_PATH.exists():
+        return []
+    entries = []
+    with LOG_PATH.open() as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                entries.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+    return entries
+
+
+def append_entry(entry):
+    LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with LOG_PATH.open("a") as f:
+        f.write(json.dumps(entry) + "\n")
+
+
+def cmd_log(args):
+    entry = {
+        "ts": now_iso(),
+        "session_id": session_id(),
+        "project": args.project or project_name(),
+        "task": args.task,
+        "task_hash": task_hash(args.task),
+        "class": args.classification,
+        "system": args.system,
+        "pattern": args.pattern,
+        "agent": args.agent,
+        "tier": args.tier,
+        "tier_reason": args.tier_reason,
+        "system_reason": args.system_reason,
+        "shown_inline": args.shown_inline,
+        "outcome": None,
+        "redirect_from": args.redirect_from,
+        "user_correction": None,
+    }
+    append_entry(entry)
+    print(f"logged: {args.system} > {args.pattern} @ {args.tier}", file=sys.stderr)
+
+
+def format_entry(e):
+    ts = e.get("ts", "?")[:16].replace("T", " ")
+    proj = e.get("project", "?")
+    cls = e.get("class", "?")
+    route = f"{e.get('system', '?')} > {e.get('pattern', '?')}"
+    if e.get("agent"):
+        route += f" > {e['agent']}"
+    route += f" @ {e.get('tier', '?')}"
+    why_parts = []
+    if e.get("tier_reason"):
+        why_parts.append(f"tier: {e['tier_reason']}")
+    if e.get("system_reason"):
+        why_parts.append(f"system: {e['system_reason']}")
+    why = ", ".join(why_parts) if why_parts else "(obvious route)"
+    task = e.get("task", "?")
+    if len(task) > 80:
+        task = task[:77] + "..."
+    flags = []
+    if e.get("redirect_from"):
+        flags.append(f"(redirect from: {e['redirect_from']})")
+    if e.get("outcome") == "corrected":
+        flags.append("[CORRECTED]")
+    flag_str = "  " + " ".join(flags) if flags else ""
+    return f"{ts} [{proj}] {cls}{flag_str}\n  task:  {task}\n  route: {route}\n  why:   {why}"
+
+
+def cmd_show(args):
+    entries = read_log()
+    if not entries:
+        print("cortex log is empty — no routes logged yet")
+        return
+    total = len(entries)
+    entries = entries[-args.last:]
+    for e in entries:
+        print(format_entry(e))
+        print()
+    print(f"[showing last {len(entries)} of {total} total routes]")
+
+
+def cmd_learn(args):
+    entries = read_log()
+    active = [e for e in entries if e.get("outcome") != "corrected"]
+
+    groups = defaultdict(list)
+    for e in active:
+        key = (e.get("class"), e.get("system"), e.get("pattern"))
+        if None in key:
+            continue
+        groups[key].append(e)
+
+    candidates = [(key, grp) for key, grp in groups.items() if len(grp) >= args.threshold]
+    candidates.sort(key=lambda x: -len(x[1]))
+
+    if args.check:
+        if candidates:
+            (cls, sys_, pat), grp = candidates[0]
+            print(f"[cortex-learn] {len(grp)} {cls} tasks routed to {sys_} > {pat} — run /cortex-learn to review")
+        return
+
+    total = len(entries)
+    if not candidates:
+        print(f"no patterns yet (threshold: ≥{args.threshold}, total routes logged: {total})")
+        if total > 0:
+            print(f"need {args.threshold - max((len(g) for g in groups.values()), default=0)} more of the same (class, system, pattern) combo to surface a pattern")
+        print(f"\nlearning activates automatically when a routing pattern repeats {args.threshold}+ times.")
+        return
+
+    print(f"found {len(candidates)} pattern(s) above threshold {args.threshold}:\n")
+    for (cls, sys_, pat), grp in candidates:
+        count = len(grp)
+        tiers = Counter(e.get("tier") for e in grp)
+        dominant_tier, tier_count = tiers.most_common(1)[0]
+        projects = Counter(e.get("project") for e in grp)
+        sample_tasks = [e.get("task", "?")[:70] for e in grp[-3:]]
+        print(f"• {cls} → {sys_} > {pat}   ×{count}   (tier: {dominant_tier} in {tier_count}/{count})")
+        print(f"  projects: {', '.join(f'{p}({c})' for p, c in projects.most_common())}")
+        print(f"  candidate shortcut for cortex.md:")
+        print(f"    | {cls.capitalize()} task | {sys_} > {pat} | {dominant_tier} |")
+        print(f"  recent examples:")
+        for t in sample_tasks:
+            print(f"    - {t}")
+        print()
+    print("if a pattern is legit, add its candidate shortcut to cortex.md Decision Shortcuts.")
+
+
+def cmd_reroute(args):
+    entries = read_log()
+    if not entries:
+        print("no entries to reroute")
+        return
+    last = entries[-1]
+    prev_route = f"{last.get('system', '?')} > {last.get('pattern', '?')} @ {last.get('tier', '?')}"
+    last["outcome"] = "corrected"
+    last["user_correction"] = args.to
+    LOG_PATH.write_text("".join(json.dumps(e) + "\n" for e in entries))
+    print(f"marked last route as corrected: {prev_route} → {args.to}")
+    print("next /cortex log call will record the new route — pass --redirect-from to link them")
+
+
+def build_parser():
+    p = argparse.ArgumentParser(prog="cortex", description="Cortex routing log & self-learning loop")
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    lg = sub.add_parser("log", help="append a routing decision")
+    lg.add_argument("--task", required=True)
+    lg.add_argument("--class", dest="classification", required=True,
+                    choices=["build", "review", "plan", "research", "debug", "design", "quickfix"])
+    lg.add_argument("--system", required=True)
+    lg.add_argument("--pattern", required=True)
+    lg.add_argument("--agent", default=None)
+    lg.add_argument("--tier", required=True, choices=["L1", "L2", "L3", "L4"])
+    lg.add_argument("--tier-reason", default=None)
+    lg.add_argument("--system-reason", default=None)
+    lg.add_argument("--shown-inline", action="store_true")
+    lg.add_argument("--project", default=None)
+    lg.add_argument("--redirect-from", default=None)
+    lg.set_defaults(func=cmd_log)
+
+    sh = sub.add_parser("show", help="display recent routes")
+    sh.add_argument("--last", type=int, default=20)
+    sh.set_defaults(func=cmd_show)
+
+    ln = sub.add_parser("learn", help="detect patterns in the log")
+    ln.add_argument("--threshold", type=int, default=PATTERN_THRESHOLD)
+    ln.add_argument("--check", action="store_true", help="terse one-line output for session start")
+    ln.set_defaults(func=cmd_learn)
+
+    rr = sub.add_parser("reroute", help="mark last entry as corrected")
+    rr.add_argument("--to", required=True, help="the corrected route")
+    rr.set_defaults(func=cmd_reroute)
+
+    return p
+
+
+def main():
+    parser = build_parser()
+    args = parser.parse_args()
+    args.func(args)
+
+
+if __name__ == "__main__":
+    main()
